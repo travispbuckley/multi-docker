@@ -1,0 +1,31 @@
+# Steps:
+  # Specific Docker as dependency
+  # build test version of react project
+  # run tests (only have react tests, but could add to server and worker if wanted.)
+  # build prod version of all projects
+  # push all images to docker hub
+  # tell elastic beanstalk to update
+sudo: required
+services:
+  - docker
+
+before_install:
+  # use the Dockerfile.dev for test image to run tests
+  - docker build -t bman1592/react-test -f ./client/Dockerfile.dev ./client
+
+script:
+  - docker run -e CI=true bman1592/react-test npm test
+
+after_success:
+  - docker build -t bman1592/multi-client ./client
+  - docker build -t bman1592/multi-nginx ./nginx
+  - docker build -t bman1592/multi-server ./server
+  - docker build -t bman1592/multi-worker ./worker
+  # login to docker cli in order to be able to push these images
+  # echo retrieves docker password from ENV and emits over STDIN to the command on the right of the pipe,
+  # and password comes in via stdin
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  - docker push bman1592/multi-client
+  - docker push bman1592/multi-nginx
+  - docker push bman1592/multi-server
+  - docker push bman1592/multi-worker
